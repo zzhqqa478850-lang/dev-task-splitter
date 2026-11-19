@@ -103,7 +103,7 @@ class TestPoint(StrictModel):
     task_ids: list[TaskId] = Field(min_length=1)
     type: TestType
     scenario: str = Field(description="测什么/前置条件")
-    steps: list[str] | None = None
+    steps: list[str] | None = Field(default=None, max_length=5)
     expected_result: str
     priority: Priority | None = None
 
@@ -130,9 +130,9 @@ class SplitResult(StrictModel):
     input_type: InputType = Field(description="输入是需求、bug、还是混合")
     summary: str = Field(max_length=200, description="一两句话概括要做什么")
     understanding: Understanding
-    tasks: list[Task] = Field(min_length=1)
-    test_points: list[TestPoint] = Field(min_length=1)
-    questions: list[Question]
+    tasks: list[Task] = Field(min_length=1, max_length=10)
+    test_points: list[TestPoint] = Field(min_length=1, max_length=20)
+    questions: list[Question] = Field(max_length=8)
     self_check: SelfCheck
 
     # 软规则 warning 属于校验过程的附加信息，不参与 JSON Schema/序列化。

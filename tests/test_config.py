@@ -18,7 +18,7 @@ def test_default_config_values() -> None:
     assert config.DEEPSEEK_BASE_URL == "https://api.deepseek.com"
     assert config.DEEPSEEK_MODEL == "deepseek-chat"
     assert config.DEEPSEEK_TEMPERATURE == 0.3
-    assert config.DEEPSEEK_MAX_TOKENS == 4000
+    assert config.DEEPSEEK_MAX_TOKENS == 8000
     assert config.DEEPSEEK_TIMEOUT == 60
     assert config.DEEPSEEK_MAX_RETRIES == 1
     assert config.MAX_INPUT_CHARS == 3000
@@ -28,7 +28,7 @@ def test_default_config_values() -> None:
     assert settings.base_url == "https://api.deepseek.com"
     assert settings.model == "deepseek-chat"
     assert settings.temperature == 0.3
-    assert settings.max_tokens == 4000
+    assert settings.max_tokens == 8000
     assert settings.timeout == 60
     assert settings.max_retries == 1
     assert settings.max_input_chars == 3000

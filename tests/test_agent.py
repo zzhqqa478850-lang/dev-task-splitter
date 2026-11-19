@@ -362,6 +362,60 @@ def test_parse_failure_retries_once_then_succeeds(
     assert "JSON" in retry_messages[-1]["content"]
 
 
+def test_length_finish_reason_retries_with_truncation_error_then_succeeds(
+    mock_chat: MagicMock, key_ok: MagicMock
+) -> None:
+    # 即使 content 本身看起来是合法 JSON，finish_reason=length 也只能按
+    # 截断失败处理，不能直接当成成功结果。
+    first_raw = as_raw(make_payload())
+    good_raw = as_raw(make_payload())
+    mock_chat.side_effect = [
+        llm_client.ChatResult(first_raw, "length"),
+        llm_client.ChatResult(good_raw, "stop"),
+    ]
+
+    result = agent.run("给登录页加记住我")
+
+    assert result.ok is True
+    assert result.attempts == 2
+    assert result.retried is True
+    assert result.raw_output == good_raw
+    assert mock_chat.call_count == 2
+
+    second_messages = mock_chat.call_args_list[1].args[0]
+    assert second_messages[-2] == {
+        "role": "assistant",
+        "content": first_raw,
+    }
+    retry_prompt = second_messages[-1]["content"]
+    assert "截断" in retry_prompt
+    assert "finish_reason=length" in retry_prompt
+
+
+def test_length_finish_reason_twice_returns_parse_failed(
+    mock_chat: MagicMock, key_ok: MagicMock
+) -> None:
+    first_raw = '{"input_type": "feature",'
+    second_raw = '{"input_type": "feature", "tasks": ['
+    mock_chat.side_effect = [
+        llm_client.ChatResult(first_raw, "length"),
+        llm_client.ChatResult(second_raw, "length"),
+    ]
+
+    result = agent.run("给登录页加记住我")
+
+    assert result.ok is False
+    assert result.result is None
+    assert result.error == config.MSG_PARSE_FAILED
+    assert result.attempts == 2
+    assert result.retried is True
+    assert result.raw_output == second_raw
+    assert result.details
+    assert "截断" in result.details
+    assert "finish_reason=length" in result.details
+    assert mock_chat.call_count == 2
+
+
 def test_soft_warning_succeeds_without_retry(
     mock_chat: MagicMock, key_ok: MagicMock
 ) -> None:

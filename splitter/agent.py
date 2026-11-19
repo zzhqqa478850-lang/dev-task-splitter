@@ -21,6 +21,7 @@ _PARSE_RETRY_TEMPLATE = (
     "上次输出不合法：{error}。请修正后重新输出完整 JSON。"
 )
 _MAX_DETAIL_CHARS = 300
+_TRUNCATED_DETAIL = "输出被截断（finish_reason=length），JSON 不完整"
 
 
 @dataclass
@@ -121,8 +122,30 @@ def run(raw_text: str) -> AgentResult:
                 details=_short_error(exc),
             )
 
+        # 新接口返回 ChatResult；为兼容仍返回普通 str 的调用方/mock，
+        # 非 ChatResult 一律按“未截断的原文”处理。
+        if isinstance(raw, llm_client.ChatResult):
+            finish_reason = raw.finish_reason
+            raw = raw.content
+        else:
+            finish_reason = None
+
         if not isinstance(raw, str):
             raw = "" if raw is None else str(raw)
+
+        # 即使 content 看起来像完整 JSON，finish_reason=length 也视为截断
+        # 并走现有 JSON 失败重试路径。
+        if finish_reason == "length":
+            details = _TRUNCATED_DETAIL
+            if _can_retry(attempts, max_retries):
+                messages = _append_parse_retry(messages, raw, details)
+                continue
+            return _failure(
+                config.MSG_PARSE_FAILED,
+                attempts=attempts,
+                raw_output=raw,
+                details=details,
+            )
 
         try:
             result = parse_and_validate(raw)

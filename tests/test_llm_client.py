@@ -32,11 +32,14 @@ def fake_openai(monkeypatch: pytest.MonkeyPatch):
     return factory, client
 
 
-def make_response(content: str | None) -> SimpleNamespace:
+def make_response(
+    content: str | None, finish_reason: str | None = "stop"
+) -> SimpleNamespace:
     return SimpleNamespace(
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(content=content),
+                finish_reason=finish_reason,
             )
         ]
     )
@@ -189,10 +192,11 @@ def test_chat_returns_empty_string_for_empty_content(
     monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
     client.chat.completions.create.return_value = make_response(content)
 
-    assert (
-        llm_client.chat([{"role": "user", "content": "测试输入"}])
-        == expected
-    )
+    result = llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert isinstance(result, llm_client.ChatResult)
+    assert result.content == expected
+    assert result.finish_reason == "stop"
 
 
 def test_chat_success_returns_content_and_passes_expected_params(
@@ -209,7 +213,9 @@ def test_chat_success_returns_content_and_passes_expected_params(
 
     result = llm_client.chat(messages)
 
-    assert result == raw_json
+    assert isinstance(result, llm_client.ChatResult)
+    assert result.content == raw_json
+    assert result.finish_reason == "stop"
     api_key_getter.assert_called_once_with()
 
     factory.assert_called_once()
@@ -222,9 +228,42 @@ def test_chat_success_returns_content_and_passes_expected_params(
     assert create_kwargs["model"] == "deepseek-chat"
     assert create_kwargs["messages"] == messages
     assert create_kwargs["response_format"] == {"type": "json_object"}
-    assert create_kwargs["max_tokens"] == 4000
+    assert create_kwargs["max_tokens"] == 8000
     assert create_kwargs["temperature"] == 0.3
     assert create_kwargs["timeout"] == 60
+
+
+def test_chat_returns_finish_reason_length_for_truncated_output(
+    monkeypatch: pytest.MonkeyPatch, fake_openai
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+
+    truncated_json = '{"summary": "被截断的输出", "tasks": ['
+    client.chat.completions.create.return_value = make_response(
+        truncated_json, finish_reason="length"
+    )
+
+    result = llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert isinstance(result, llm_client.ChatResult)
+    assert result.content == truncated_json
+    assert result.finish_reason == "length"
+
+
+def test_chat_missing_finish_reason_is_none(
+    monkeypatch: pytest.MonkeyPatch, fake_openai
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content="{}"))]
+    )
+
+    result = llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert result.content == "{}"
+    assert result.finish_reason is None
 
 
 def test_chat_other_api_error_is_wrapped_without_key(

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from openai import (
@@ -31,6 +32,7 @@ __all__ = [
     "LLMRateLimitError",
     "LLMTimeoutError",
     "LLMUnavailableError",
+    "ChatResult",
     "chat",
 ]
 
@@ -106,14 +108,24 @@ def _status_code(exc: Exception) -> int | None:
         return None
 
 
-def chat(messages: list[dict[str, str]]) -> str:
-    """调用一次 chat completion，返回模型文本内容。
+@dataclass(frozen=True)
+class ChatResult:
+    """一次 chat 调用的文本与结束原因。"""
+
+    content: str
+    finish_reason: str | None = None
+
+
+def chat(messages: list[dict[str, str]]) -> ChatResult:
+    """调用一次 chat completion，返回文本内容和 ``finish_reason``。
 
     - 缺少 API key 时由 :func:`config.get_api_key` 抛出
       :class:`config.MissingAPIKeyError`；该检查发生在创建 client 之前，
       因此不会产生任何请求。
-    - ``content`` 为 ``None`` 或空字符串时返回 ``""``，由上层当作失败
+    - ``content`` 为 ``None`` 或空字符串时返回空字符串，由上层当作失败
       处理并重试。
+    - ``finish_reason == "length"`` 表示输出被截断，由上层按 JSON 失败
+      处理。
     - 超时、401/403、429、网络错误/5xx 分别转换为对应的异常类型；
       异常信息固定，不包含 key 或请求头。
     """
@@ -157,10 +169,16 @@ def chat(messages: list[dict[str, str]]) -> str:
         raise LLMError(config.MSG_UNAVAILABLE) from None
 
     try:
-        content: Any = response.choices[0].message.content
+        choice = response.choices[0]
+        content: Any = choice.message.content
     except (AttributeError, IndexError, TypeError, KeyError):
         raise LLMParseError(config.MSG_PARSE_FAILED) from None
 
+    finish_reason = getattr(choice, "finish_reason", None)
+    if not isinstance(finish_reason, str):
+        finish_reason = None
+
     if not content:
-        return ""
-    return content if isinstance(content, str) else str(content)
+        return ChatResult("", finish_reason)
+    text = content if isinstance(content, str) else str(content)
+    return ChatResult(text, finish_reason)

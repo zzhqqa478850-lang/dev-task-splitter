@@ -267,6 +267,80 @@ def test_empty_test_point_task_ids_fails(valid_payload: dict) -> None:
         SplitResult.model_validate(valid_payload)
 
 
+def limit_payload(valid_payload: dict) -> dict:
+    """构造刚好达到 10/20/8/5 条数上限的合法结果。"""
+
+    payload = clone(valid_payload)
+    task_template = clone(payload["tasks"][0])
+    point_template = clone(payload["test_points"][0])
+
+    payload["tasks"] = []
+    for index in range(1, 11):
+        task = clone(task_template)
+        task["id"] = f"T{index}"
+        task["depends_on"] = []
+        payload["tasks"].append(task)
+
+    payload["test_points"] = []
+    for index in range(1, 21):
+        point = clone(point_template)
+        point["id"] = f"TP{index}"
+        point["task_ids"] = [f"T{(index - 1) % 10 + 1}"]
+        point["steps"] = [f"步骤{step}" for step in range(1, 6)]
+        payload["test_points"].append(point)
+
+    payload["questions"] = [
+        {
+            "id": f"Q{index}",
+            "question": f"待确认问题 {index}",
+            "why": "原文存在需要确认的边界。",
+            "impact": "影响任务范围和测试设计。",
+        }
+        for index in range(1, 9)
+    ]
+    return payload
+
+
+def test_collection_limits_accept_exact_upper_bound(valid_payload: dict) -> None:
+    payload = limit_payload(valid_payload)
+
+    result = parse_and_validate(as_raw(payload))
+
+    assert len(result.tasks) == 10
+    assert len(result.test_points) == 20
+    assert len(result.questions) == 8
+    assert len(result.test_points[0].steps or []) == 5
+    assert result.warnings == []
+
+
+@pytest.mark.parametrize(
+    "collection, item_id",
+    [
+        ("tasks", "T11"),
+        ("test_points", "TP21"),
+        ("questions", "Q9"),
+    ],
+)
+def test_collection_over_upper_bound_fails(
+    valid_payload: dict, collection: str, item_id: str
+) -> None:
+    payload = limit_payload(valid_payload)
+    extra = clone(payload[collection][0])
+    extra["id"] = item_id
+    payload[collection].append(extra)
+
+    with pytest.raises(ValidationError):
+        SplitResult.model_validate(payload)
+
+
+def test_steps_over_upper_bound_fails(valid_payload: dict) -> None:
+    payload = limit_payload(valid_payload)
+    payload["test_points"][0]["steps"].append("步骤6")
+
+    with pytest.raises(ValidationError):
+        SplitResult.model_validate(payload)
+
+
 def test_extra_fields_fail(valid_payload: dict) -> None:
     top_level = clone(valid_payload)
     top_level["unexpected"] = True

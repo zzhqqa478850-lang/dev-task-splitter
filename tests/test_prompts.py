@@ -51,6 +51,27 @@ def test_system_prompt_contains_required_rules() -> None:
         assert phrase in system, f"system prompt 缺少：{phrase}"
 
 
+def test_system_prompt_contains_output_limits_and_mixed_rule() -> None:
+    system = prompts.load_system_prompt()
+
+    limit_phrases = [
+        "`tasks` ≤ 10",
+        "`test_points` ≤ 20",
+        "`questions` ≤ 8",
+        "`steps` 最多 5 步",
+        "需求太大时合并成更粗的任务，不要堆条数",
+    ]
+    for phrase in limit_phrases:
+        assert phrase in system, f"system prompt 缺少条数上限：{phrase}"
+
+    mixed_rule = (
+        "输入里既有至少一项新功能或改动需求，又有至少一项现有功能行为不符合"
+        "预期的具体现象（报错、白屏、数据或内容错误等）才算 mixed；需求之间"
+        "互相矛盾、模糊抱怨、体验建议都不算 bug。"
+    )
+    assert mixed_rule in system, "system prompt 缺少产品定稿的 mixed 判定原文"
+
+
 def test_system_prompt_contains_json_order_and_sample() -> None:
     system = prompts.load_system_prompt()
 
