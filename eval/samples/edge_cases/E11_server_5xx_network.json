@@ -1,0 +1,27 @@
+{
+  "id": "E11",
+  "name": "5xx / 网络错误",
+  "counts_toward_8_of_10": false,
+  "input_file": "../S01_feature_coupon_redemption.txt",
+  "trigger": [
+    "mock 接口返回 HTTP 503（也可测 500/502）",
+    "或在测试环境断网 / 让 DNS 解析失败后点击拆解"
+  ],
+  "mock": {
+    "A_retry_succeeds": "第 1 次 503，第 2 次返回合法 SplitResult",
+    "B_both_fail": "两次都 503 或都断网"
+  },
+  "expected_api_calls": 2,
+  "expected_retries": 1,
+  "retry_wait_seconds": null,
+  "expected_behavior": [
+    "原样重发 1 次（共 2 次调用），不再多重试",
+    "A：第 2 次成功则正常展示",
+    "B：仍失败则展示错误",
+    "页面不崩溃",
+    "不把空/半截/错误响应渲染成成功的三块结果",
+    "错误信息中不出现 API key 或其它密钥"
+  ],
+  "expected_message": "以实现为准（记录实际文案）",
+  "source": "架构文档 v1 第 3.2 节第 4 条 + 文末变更记录（2026-11-20）"
+}

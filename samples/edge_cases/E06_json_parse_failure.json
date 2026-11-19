@@ -4,18 +4,22 @@
   "counts_toward_8_of_10": false,
   "input_file": "../S01_feature_coupon_redemption.txt",
   "trigger": [
-    "mock LLM，不依赖线上偶发"
+    "mock LLM，不依赖线上偶发",
+    "含截断情形：mock 响应 finish_reason == \"length\""
   ],
   "mock": {
     "A_retry_succeeds": "第 1 次返回非 JSON（纯散文 / 截断 JSON / 空内容），第 2 次返回合法 SplitResult",
     "B_both_fail": "两次都返回非 JSON",
-    "C_validation_fail": "可选：返回能 json.loads 但 pydantic/业务校验失败的 JSON（缺字段、非法枚举、input_type 为 unclear 但 questions 为空），走同一重试路径"
+    "C_validation_fail": "可选：返回能 json.loads 但 pydantic/业务校验失败的 JSON（缺字段、非法枚举、input_type 为 unclear 但 questions 为空），走同一重试路径",
+    "D_finish_reason_length": "返回 finish_reason == \"length\"（输出被截断，内容可能是半截 JSON，也可能碰巧能解析）：一律按 JSON 失败处理，重试 1 次；可分 A/B 两种结果"
   },
   "expected_api_calls": 2,
   "expected_retries": 1,
   "retry_wait_seconds": null,
   "expected_behavior": [
     "第 2 次请求追加 user 消息，带上错误信息，要求重新输出完整 JSON",
+    "finish_reason == \"length\" 视为截断，与 JSON 解析失败走同一条重试路径（重试 1 次），即使内容能 json.loads 也不能当成功",
+    "条数超限（tasks > 10、test_points > 20、questions > 8、steps > 5）属于 pydantic 校验失败，同样走这条重试路径",
     "只重试 1 次（共 2 次调用）",
     "A：第 2 次成功则正常展示",
     "B：仍失败则展示错误 + 原始输出",

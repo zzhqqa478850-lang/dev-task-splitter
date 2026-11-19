@@ -19,6 +19,7 @@
    - `test_points`（要测的点）至少 1 条；
    - `questions`（待澄清问题）**默认可以为空**；只有 `input_type == "unclear"` 时必须非空（业务校验）；
    - **不串类**：测试点不写进任务、问题不写进测试点、任务不是问题清单，三块各管各的；
+   - **条数未超限**：`tasks` ≤ 10、`test_points` ≤ 20、`questions` ≤ 8、每条 `steps` ≤ 5（架构 v1 变更记录；需求大时应合并成粗任务）。超限属于 schema 校验失败，会走 JSON 失败的重试路径；最终输出仍超限，记不合格；
    - 时限符合第 2 条，重试次数 ≤1；
    - S04（模糊样例）还须通过下面的模糊断言。
 
@@ -34,7 +35,7 @@
 
 1. 实现并在本地启动应用后，按 `S01` 到 `S10` 的顺序，把对应 `.txt` **全文**粘贴进输入框提交。
 2. 记录实际耗时（秒）、重试次数（看日志）和重试结果（无重试/成功/仍失败）。不触发重试时超过 60 秒，判不合格；触发了重试的，按第 2 条的分支评。
-3. 检查任务和测试点是否各至少 1 条、是否串类；`input_type` 为 `unclear` 时问题是否非空。S04 再核对模糊断言。其它样例的 `input_type` 判错只记在备注，不改变合格判定。
+3. 检查任务和测试点是否各至少 1 条、各块条数是否超限、是否串类；`input_type` 为 `unclear` 时问题是否非空。S04 再核对模糊断言。其它样例的 `input_type` 判错只记在备注，不改变合格判定。
 4. 在 [`review_sheet.md`](review_sheet.md) 或 [`review_sheet.csv`](review_sheet.csv) 逐行填写，底部汇总合格数，看是否达到 8/10。
 5. 跑额外的注入用例 X01（不计入 8/10）。
 6. 按 [`edge_cases/README.md`](edge_cases/README.md) 跑异常用例（不计入 8/10）。
@@ -46,7 +47,7 @@
 | 编号 | 文件 | 类型 | 期望 input_type | 标题 | 字符数 | 来源 |
 |---|---|---|---|---|---:|---|
 | S01 | `S01_feature_coupon_redemption.txt` | 需求 | `feature` | checkout 优惠码兑换（中英混杂） | 622 | C09 |
-| S02 | `S02_feature_multi_requests.txt` | 需求 | `feature` | 暗黑模式、发票、定时推送、关于页改地址等多个需求混在一起 | 253 | C13 |
+| S02 | `S02_feature_multi_requests.txt` | 需求 | `feature` 或 `mixed` | 暗黑模式、发票、定时推送、关于页改地址等多个需求混在一起 | 253 | C13 |
 | S03 | `S03_feature_contradictory_search.txt` | 需求 | `feature` | 搜索排序、分页、游客访问规则自相矛盾 | 170 | C15 |
 | S04 | `S04_feature_vague_unclear.txt` | 需求（故意模糊） | `unclear` | 老板转述「系统弄好一点」 | 147 | 本目录新写（风格参照 C03/C04） |
 | S05 | `S05_feature_points_mall_messy.txt` | 需求 | `feature` | 积分商城第一期（群聊纪要，夹带闲聊） | 1072 | C05 的压缩版 |
@@ -55,6 +56,8 @@
 | S08 | `S08_bug_payment_webhook_lock.txt` | bug 反馈 | `bug` | 已付款订单仍显示待支付（乐观锁与支付宝字段） | 1319 | 本目录新写 |
 | S09 | `S09_bug_checkout_white_screen.txt` | bug 反馈 | `bug` | 结算页白屏（gift item.price 为 null） | 978 | 部分背景可对照 C09，本条是独立缺陷 |
 | S10 | `S10_bug_login_sms_messy.txt` | bug 反馈 | `bug` | 登录验证码的杂乱反馈（收不到、报错、各端表现不同、疑似 4 位码） | 304 | 本目录新写 |
+
+S02 的 input_type 判 `feature` 或 `mixed` 都通过（产品经理定：第 4 条关于页地址勘误算边界情况；「帮助中心搜索不太好用」太模糊，不算 bug）。S03 只接受 `feature`（需求互相矛盾不算 bug）。
 
 字符数 = `len(文本.strip())`，都 ≤3000，属于应能正常拆解的合法输入。原来的 S04（推送免打扰规则自相矛盾）已换成模糊样例，原文仍在 `cases.jsonl` 的 C16。
 
