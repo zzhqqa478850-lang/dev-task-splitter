@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 
-from .schema import SplitResult, Task
+from .schema import InputType, SplitResult, Task
 
 __all__ = [
     "BusinessRuleError",
@@ -110,6 +110,10 @@ def validate_result(result: SplitResult) -> list[str]:
             question.affected_task_ids or [],
             task_ids,
         )
+
+    # 硬规则 3：模糊输入必须提出待澄清问题。
+    if result.input_type == InputType.UNCLEAR and not result.questions:
+        raise BusinessRuleError("input_type 为 unclear 时 questions 必须非空")
 
     # 软规则：每个任务至少被 1 个测试点覆盖。
     covered_task_ids = {

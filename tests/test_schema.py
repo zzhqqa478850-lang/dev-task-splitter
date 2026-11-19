@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from splitter.schema import (
+    Category,
     InputType,
     Priority,
     SplitResult,
@@ -103,6 +104,85 @@ def test_valid_payload_passes_model_and_parser(valid_payload: dict) -> None:
     assert [task.id for task in result.tasks] == ["T1", "T2"]
     assert result.questions == []
     assert result.warnings == []
+
+
+def test_extended_enums_are_available() -> None:
+    assert InputType.UNCLEAR.value == "unclear"
+    assert Category.CLARIFICATION.value == "clarification"
+    # 旧枚举值保持兼容。
+    assert {item.value for item in InputType} >= {
+        "feature",
+        "bug",
+        "mixed",
+        "other",
+    }
+    assert {item.value for item in Category} >= {
+        "frontend",
+        "backend",
+        "data",
+        "infra",
+        "test",
+        "doc",
+        "other",
+    }
+
+
+def unclear_payload(valid_payload: dict) -> dict:
+    """构造合法的 unclear 输入：澄清类任务 + 非空 questions。"""
+
+    payload = clone(valid_payload)
+    payload["input_type"] = "unclear"
+    payload["tasks"][0]["category"] = "clarification"
+    payload["questions"] = [
+        {
+            "id": "Q1",
+            "question": "具体希望优先改善哪些页面或流程？",
+            "why": "原文只有笼统的「好用一点」。",
+            "impact": "范围不定，无法拆出可执行任务。",
+            "blocking": True,
+        }
+    ]
+    return payload
+
+
+def test_unclear_with_nonempty_questions_passes(valid_payload: dict) -> None:
+    payload = unclear_payload(valid_payload)
+
+    model = SplitResult.model_validate(payload)
+    assert model.input_type == InputType.UNCLEAR
+    assert model.tasks[0].category == Category.CLARIFICATION
+    assert len(model.questions) == 1
+
+    result = parse_and_validate(as_raw(payload))
+    assert result.input_type == InputType.UNCLEAR
+    assert result.questions[0].id == "Q1"
+
+
+def test_unclear_with_empty_questions_fails(valid_payload: dict) -> None:
+    payload = unclear_payload(valid_payload)
+    payload["questions"] = []
+
+    # schema 本身允许空数组，业务规则要求 unclear 时必须非空。
+    assert SplitResult.model_validate(payload).questions == []
+    with pytest.raises(BusinessRuleError):
+        parse_and_validate(as_raw(payload))
+
+
+def test_feature_with_empty_questions_passes(valid_payload: dict) -> None:
+    assert valid_payload["input_type"] == "feature"
+    valid_payload["questions"] = []
+
+    result = parse_and_validate(as_raw(valid_payload))
+    assert result.input_type == InputType.FEATURE
+    assert result.questions == []
+
+
+def test_clarification_category_is_allowed(valid_payload: dict) -> None:
+    valid_payload["tasks"][1]["category"] = "clarification"
+
+    result = parse_and_validate(as_raw(valid_payload))
+    assert result.tasks[1].category == Category.CLARIFICATION
+
 
 
 def test_json_schema_forbids_additional_properties() -> None:

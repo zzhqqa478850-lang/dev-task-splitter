@@ -5,15 +5,21 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import httpx2
 import pytest
-from openai import APIError, APITimeoutError
+from openai import (
+    APIConnectionError,
+    APIError,
+    APITimeoutError,
+    AuthenticationError,
+    InternalServerError,
+    PermissionDeniedError,
+    RateLimitError,
+)
 
 from splitter import config, llm_client
 
 pytestmark = pytest.mark.usefixtures("isolated_config")
-
-MISSING_KEY_MESSAGE = "未配置 DEEPSEEK_API_KEY，请在 .env 中填写后重试。"
-TIMEOUT_MESSAGE = "调用 DeepSeek 接口超时，请稍后重试。"
 
 
 @pytest.fixture
@@ -36,17 +42,26 @@ def make_response(content: str | None) -> SimpleNamespace:
     )
 
 
+def make_status_error(exc_type, status_code: int):
+    request = httpx2.Request(
+        "POST", "https://api.deepseek.com/chat/completions"
+    )
+    response = httpx2.Response(status_code, request=request)
+    return exc_type(f"HTTP {status_code}", response=response, body=None)
+
+
 def test_chat_without_api_key_raises_before_client_creation(
     monkeypatch: pytest.MonkeyPatch, fake_openai
 ) -> None:
-    factory, _ = fake_openai
+    factory, client = fake_openai
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 
     with pytest.raises(config.MissingAPIKeyError) as exc_info:
         llm_client.chat([{"role": "user", "content": "测试输入"}])
 
-    assert str(exc_info.value) == MISSING_KEY_MESSAGE
-    factory.assert_not_called()
+    assert str(exc_info.value) == config.MSG_MISSING_API_KEY
+    assert factory.call_count == 0
+    assert client.chat.completions.create.call_count == 0
 
 
 def test_get_api_key_without_key_raises_fixed_message(
@@ -57,7 +72,7 @@ def test_get_api_key_without_key_raises_fixed_message(
     with pytest.raises(config.MissingAPIKeyError) as exc_info:
         config.get_api_key()
 
-    assert str(exc_info.value) == MISSING_KEY_MESSAGE
+    assert str(exc_info.value) == config.MSG_MISSING_API_KEY
 
 
 @pytest.mark.parametrize(
@@ -68,7 +83,7 @@ def test_get_api_key_without_key_raises_fixed_message(
     ],
     ids=["APITimeoutError", "TimeoutError"],
 )
-def test_chat_timeout_raises_fixed_message(
+def test_chat_timeout_raises_timeout_error(
     monkeypatch: pytest.MonkeyPatch, fake_openai, make_exc
 ) -> None:
     _, client = fake_openai
@@ -78,7 +93,85 @@ def test_chat_timeout_raises_fixed_message(
     with pytest.raises(llm_client.LLMTimeoutError) as exc_info:
         llm_client.chat([{"role": "user", "content": "测试输入"}])
 
-    assert str(exc_info.value) == TIMEOUT_MESSAGE
+    assert str(exc_info.value) == config.MSG_TIMEOUT
+
+
+@pytest.mark.parametrize(
+    "status_code, exc_type",
+    [
+        (401, AuthenticationError),
+        (403, PermissionDeniedError),
+    ],
+)
+def test_chat_auth_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_openai,
+    status_code: int,
+    exc_type,
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.side_effect = make_status_error(
+        exc_type, status_code
+    )
+
+    with pytest.raises(llm_client.LLMAuthError) as exc_info:
+        llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert str(exc_info.value) == config.MSG_AUTH
+    assert "unit-test-key" not in str(exc_info.value)
+
+
+def test_chat_rate_limit_error(
+    monkeypatch: pytest.MonkeyPatch, fake_openai
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.side_effect = make_status_error(
+        RateLimitError, 429
+    )
+
+    with pytest.raises(llm_client.LLMRateLimitError) as exc_info:
+        llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert str(exc_info.value) == config.MSG_RATE_LIMIT
+
+
+@pytest.mark.parametrize("status_code", [500, 502, 503])
+def test_chat_server_errors_are_unavailable(
+    monkeypatch: pytest.MonkeyPatch, fake_openai, status_code: int
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.side_effect = make_status_error(
+        InternalServerError, status_code
+    )
+
+    with pytest.raises(llm_client.LLMUnavailableError) as exc_info:
+        llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert str(exc_info.value) == config.MSG_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "make_exc",
+    [
+        lambda: APIConnectionError(request=object()),
+        lambda: ConnectionError("connection refused"),
+    ],
+    ids=["APIConnectionError", "ConnectionError"],
+)
+def test_chat_network_errors_are_unavailable(
+    monkeypatch: pytest.MonkeyPatch, fake_openai, make_exc
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.side_effect = make_exc()
+
+    with pytest.raises(llm_client.LLMUnavailableError) as exc_info:
+        llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert str(exc_info.value) == config.MSG_UNAVAILABLE
 
 
 @pytest.mark.parametrize(
@@ -140,7 +233,7 @@ def test_chat_other_api_error_is_wrapped_without_key(
     _, client = fake_openai
     monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
     client.chat.completions.create.side_effect = APIError(
-        "boom", request=object(), body=None
+        "boom unit-test-key", request=object(), body=None
     )
 
     with pytest.raises(llm_client.LLMError) as exc_info:
@@ -149,3 +242,16 @@ def test_chat_other_api_error_is_wrapped_without_key(
     message = str(exc_info.value)
     assert message == llm_client.LLM_ERROR_MESSAGE
     assert "unit-test-key" not in message
+
+
+def test_chat_malformed_response_raises_parse_error(
+    monkeypatch: pytest.MonkeyPatch, fake_openai
+) -> None:
+    _, client = fake_openai
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "unit-test-key")
+    client.chat.completions.create.return_value = SimpleNamespace(choices=[])
+
+    with pytest.raises(llm_client.LLMParseError) as exc_info:
+        llm_client.chat([{"role": "user", "content": "测试输入"}])
+
+    assert str(exc_info.value) == config.MSG_PARSE_FAILED

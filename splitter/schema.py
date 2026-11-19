@@ -35,6 +35,7 @@ class InputType(str, Enum):
     FEATURE = "feature"
     BUG = "bug"
     MIXED = "mixed"
+    UNCLEAR = "unclear"
     OTHER = "other"
 
 
@@ -51,6 +52,7 @@ class Category(str, Enum):
     INFRA = "infra"
     TEST = "test"
     DOC = "doc"
+    CLARIFICATION = "clarification"
     OTHER = "other"
 
 
