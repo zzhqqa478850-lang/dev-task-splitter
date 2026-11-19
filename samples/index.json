@@ -1,0 +1,112 @@
+[
+  {
+    "id": "S01",
+    "file": "S01_feature_coupon_redemption.txt",
+    "kind": "需求",
+    "input_type": "feature",
+    "title": "checkout 优惠码兑换（中英混杂）",
+    "source_case": "C09",
+    "char_count": 622,
+    "hanzi_count": 151,
+    "review_hint": "中英术语密集；注意并发幂等与取消订单释放优惠券。问题块应非空（金额口径/时区等）。"
+  },
+  {
+    "id": "S02",
+    "file": "S02_feature_multi_requests.txt",
+    "kind": "需求",
+    "input_type": "feature",
+    "title": "暗黑模式/发票/定时推送/关于页改地址等多需求混杂",
+    "source_case": "C13",
+    "char_count": 253,
+    "hanzi_count": 194,
+    "review_hint": "应拆成相互独立的任务；关于页改地址优先级最高。帮助中心搜索标明非本周强制。input_type 应为 feature（全是功能，无缺陷报告）。"
+  },
+  {
+    "id": "S03",
+    "file": "S03_feature_contradictory_search.txt",
+    "kind": "需求",
+    "input_type": "feature",
+    "title": "搜索排序/分页/游客访问规则自相矛盾",
+    "source_case": "C15",
+    "char_count": 170,
+    "hanzi_count": 133,
+    "review_hint": "三处硬冲突，问题应指出矛盾且宜标为阻塞；不能擅自选定一侧写成已确认方案。"
+  },
+  {
+    "id": "S04",
+    "file": "S04_feature_contradictory_notifications.txt",
+    "kind": "需求",
+    "input_type": "feature",
+    "title": "推送/短信免打扰规则自相矛盾",
+    "source_case": "C16",
+    "char_count": 262,
+    "hanzi_count": 193,
+    "review_hint": "多角色规则互相冲突（即时、夜间禁推、验证码豁免、法务、营销排除、总开关）。问题块必须抓住冲突。"
+  },
+  {
+    "id": "S05",
+    "file": "S05_feature_points_mall_messy.txt",
+    "kind": "需求",
+    "input_type": "feature",
+    "title": "积分商城第一期（群聊纪要，含闲聊）",
+    "source_case": "C05（压缩至 3000 字以内，完整超长版见 edge_cases）",
+    "char_count": 1072,
+    "hanzi_count": 793,
+    "review_hint": "需忽略午餐/保温杯/团建闲聊；覆盖账户流水、签到、兑换事务、权限与明确的非范围。不要把成长值改成积分。"
+  },
+  {
+    "id": "S06",
+    "file": "S06_bug_coupon_list_500.txt",
+    "kind": "bug反馈",
+    "input_type": "bug",
+    "title": "我的优惠券页 500（expire_at 为空）",
+    "source_case": "C11",
+    "char_count": 742,
+    "hanzi_count": 118,
+    "review_hint": "应基于堆栈定位 None.strftime，而不是泛泛排查。按架构 v1，任务第一项宜为「复现并定位」。"
+  },
+  {
+    "id": "S07",
+    "file": "S07_bug_login_502_redis.txt",
+    "kind": "bug反馈",
+    "input_type": "bug",
+    "title": "登录 502（Redis 写 session 失败）",
+    "source_case": "C12",
+    "char_count": 1042,
+    "hanzi_count": 146,
+    "review_hint": "日志已指向 redis-auth unix socket 连接失败发生在写 session。不要改口成验证码服务或 App 缺陷。首个任务宜为复现并定位。"
+  },
+  {
+    "id": "S08",
+    "file": "S08_bug_payment_webhook_lock.txt",
+    "kind": "bug反馈",
+    "input_type": "bug",
+    "title": "已付款订单仍待支付（乐观锁与支付宝字段）",
+    "source_case": null,
+    "char_count": 1319,
+    "hanzi_count": 243,
+    "review_hint": "两条线索都要覆盖：微信侧 OptimisticLockError 导致 webhook 500 重试仍失败；支付宝侧 transId 驼峰解析为空被 skip。对账脚本大改造不在范围。"
+  },
+  {
+    "id": "S09",
+    "file": "S09_bug_checkout_white_screen.txt",
+    "kind": "bug反馈",
+    "input_type": "bug",
+    "title": "结算页白屏（gift item.price 为 null）",
+    "source_case": "部分背景可对照 C09，本条为独立缺陷",
+    "char_count": 978,
+    "hanzi_count": 157,
+    "review_hint": "应定位到 gift item.price 为 null 导致 toFixed 抛错；0 元券与赠品都不应白屏。ResizeObserver 是否相关应进问题而非当成已确认根因。"
+  },
+  {
+    "id": "S10",
+    "file": "S10_bug_login_sms_messy.txt",
+    "kind": "bug反馈",
+    "input_type": "bug",
+    "title": "登录验证码杂乱反馈（收不到/错误/端差异/疑似 4 位码）",
+    "source_case": null,
+    "char_count": 304,
+    "hanzi_count": 233,
+    "review_hint": "信息杂、可能不止一个根因；不得只修其中一个现象就当作全部解决。4 位验证码线索要追问/核实，不要直接当成事实去改成 4 位。首个任务宜为复现并定位。"
+  }
+]
