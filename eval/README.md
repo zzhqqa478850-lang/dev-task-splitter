@@ -40,16 +40,16 @@
 | 模糊需求 | 2 | C03, C04 | unclear, unclear（另须有 `clarification` 任务且 questions 非空） |
 | 超长需求 | 2 | C05, C06 | feature, feature（按 `len(input.strip())`：C05 从 3098 删去两段闲聊缩到 2981，C06 为 2984，都 ≤3000，应正常拆解；超限拒绝见 `samples/edge_cases/` 的 E03、E08） |
 | 信息不足 | 2 | C07, C08 | feature, feature |
-| 中英混杂 | 2 | C09, C10 | feature；**C10 为 mixed**（也接受 feature：「webhook 老丢事件」没有具体现象，属边界） |
+| 中英混杂 | 2 | C09, C10 | feature, feature（C10 也接受 mixed：「webhook 老丢事件」没有具体现象，正文是新的处理规格，属边界） |
 | bug报告 | 2 | C11, C12 | bug, bug |
 | 多需求混合 | 2 | C13, C14 | feature（也接受 mixed，对应 samples/S02）；**C14 为 mixed**（多项功能 + 隐私协议 404） |
 | 自相矛盾 | 2 | C15, C16 | feature, feature |
 | 极短输入 | 2 | C17, C18 | bug, bug（也接受 unclear） |
 | 非需求或注入 | 2 | C19, C20 | unclear, unclear（两条去掉注入后都没有真实需求，只接受 unclear，other 不算通过） |
 
-`input_type` 金标合计：feature 10，bug 4，mixed 2，unclear 4（另有 C13 也接受 mixed，C10 也接受 feature，C17、C18 也接受 unclear）。
+`input_type` 金标合计：feature 11，bug 4，mixed 1，unclear 4（另有 C10、C13 也接受 mixed，C17、C18 也接受 unclear）。
 
-`mixed` 判定：既有至少一项新功能或改动需求，又有至少一项「现有功能行为不符合预期」的具体现象时才判 `mixed`；需求矛盾、模糊抱怨、体验建议不算 bug。详见 `rubric.md` 3.7。
+`mixed` 判定：既有至少一项新功能或改动需求，又有至少一项「现有功能行为不符合预期」的具体现象时才判 `mixed`；需求矛盾、模糊抱怨、体验建议不算 bug。修 bug 所需的修复方案、临时补救和运维处理，都不算新需求。这条只适用于已有具体现象的 bug；没有具体现象、正文是新处理规格的，按新需求算。详见 `rubric.md` 3.7。
 
 条数上限：输出 `tasks` ≤ 10、`test_points` ≤ 20、`questions` ≤ 8、`steps` ≤ 5。`expected_*` 是要点，一条输出任务覆盖多个要点也算覆盖，合并不算漏。各条期望条数都在上限内（expected_tasks 最多 9 条、expected_test_points 最多 10 条、expected_questions 最多 4 条）。
 
