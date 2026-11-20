@@ -72,6 +72,53 @@ def _set_text(page: Page, value: str) -> None:
     area.press("Tab")
 
 
+def _primary_label(page: Page) -> dict:
+    """读主按钮里真正上色的那个节点，而不是 button 自己的 color。"""
+
+    return page.evaluate(
+        """() => {
+            const visible = [...document.querySelectorAll('.st-key-split_button button')].filter((el) => {
+                const cs = getComputedStyle(el);
+                const box = el.getBoundingClientRect();
+                return cs.visibility !== 'hidden' && cs.display !== 'none' && box.width > 0 && box.height > 0;
+            });
+            if (visible.length !== 1) {
+                return {error: 'button-count', count: visible.length, texts: visible.map((el) => (el.innerText || '').trim())};
+            }
+            const button = visible[0];
+            const label = button.querySelector('p') || button;
+            const fg = getComputedStyle(label).color;
+            const bg = getComputedStyle(button).backgroundColor;
+            const parse = (c) => {
+                const m = c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+                return [Number(m[1]), Number(m[2]), Number(m[3])];
+            };
+            const lin = (v) => {
+                const s = v / 255;
+                return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+            };
+            const L = (rgb) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+            const a = L(parse(fg));
+            const b = L(parse(bg));
+            const contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+            const box = label.getBoundingClientRect();
+            return {
+                text: (label.textContent || '').trim(),
+                fg, bg, contrast,
+                width: box.width,
+                height: box.height,
+            };
+        }"""
+    )
+
+
+def _assert_primary_label(page: Page, expected: str) -> None:
+    info = _primary_label(page)
+    assert info.get("text") == expected, info
+    assert info["width"] > 0 and info["height"] > 0, info
+    assert info["contrast"] >= 4.5, info
+
+
 def _shown(page: Page, text: str) -> int:
     """只数用户看得到的文字。Streamlit 在脚本结束前可能留着零尺寸的旧节点。"""
 
@@ -159,7 +206,13 @@ def test_live_browser_shows_pending_lock_and_unlock(live_app: dict) -> None:
         )
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         page.goto(url, wait_until="domcontentloaded")
-        expect(page.get_by_role("button", name="拆解", exact=True)).to_be_enabled()
+        submit = page.get_by_role("button", name="拆解", exact=True)
+        expect(submit).to_be_enabled()
+        _assert_primary_label(page, "拆解")
+        submit.hover()
+        _assert_primary_label(page, "拆解")
+        submit.focus()
+        _assert_primary_label(page, "拆解")
         expect(page.get_by_text("字数：0 / 3000")).to_be_visible()
         expect(page.get_by_text("设计提案")).to_have_count(0)
         assert _overflow(page) <= 1
@@ -179,6 +232,7 @@ def test_live_browser_shows_pending_lock_and_unlock(live_app: dict) -> None:
         _set_text(page, "字" * 3001)
         expect(page.get_by_text("当前 3001 字，超过 3000 字上限，请删减后再试。")).to_be_visible()
         expect(page.get_by_role("button", name="拆解", exact=True)).to_be_disabled()
+        _assert_primary_label(page, "拆解")
         assert page.locator("textarea").input_value() == "字" * 3001
         assert _calls(fixture) == []
 
@@ -228,6 +282,7 @@ def test_live_browser_shows_pending_lock_and_unlock(live_app: dict) -> None:
         assert _shown(page, "需求理解") == 0
         assert _shown(page, "验收标准") == 0
         expect(page.get_by_text("正在拆解…").first).to_be_visible()
+        _assert_primary_label(page, "正在拆解…")
         expect(page.locator("textarea").filter(visible=True)).to_be_disabled()
         for name in (
             "S01 需求：优惠码兑换",

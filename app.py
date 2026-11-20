@@ -160,9 +160,8 @@ THEME_CSS = """
   min-height: 44px;
   font-size: 15px;
   line-height: 20px;
-  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* 不过渡字色和底色：黑底浅字切到浅底深字时，中间帧会看不清。 */
+  transition: border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .stApp button:focus,
 .stApp button:focus-visible,
@@ -172,7 +171,10 @@ THEME_CSS = """
   outline: 2px solid #1C1814;
   outline-offset: 2px;
 }
-.stApp .st-key-split_button button {
+.stApp .st-key-split_button button,
+.stApp .st-key-split_button button:hover,
+.stApp .st-key-split_button button:focus,
+.stApp .st-key-split_button button:focus-visible {
   background: #1C1814;
   color: #F7F4EE;
   border: 1px solid #1C1814;
@@ -180,6 +182,13 @@ THEME_CSS = """
   min-height: 44px;
   padding: 0 22px;
   font-weight: 700;
+}
+/* 按钮文案是内部 p。上面的 .stApp p 会把这段字涂成墨色，必须单独盖回去。 */
+.stApp .st-key-split_button button :is(p, span, div),
+.stApp .st-key-split_button button:hover :is(p, span, div),
+.stApp .st-key-split_button button:focus :is(p, span, div),
+.stApp .st-key-split_button button:focus-visible :is(p, span, div) {
+  color: #F7F4EE;
 }
 .stApp .st-key-example_S01 button,
 .stApp .st-key-example_S04 button,
@@ -194,6 +203,8 @@ THEME_CSS = """
   min-height: 44px;
 }
 .stApp .st-key-split_button button:disabled,
+.stApp .st-key-split_button button:disabled:hover,
+.stApp .st-key-split_button button:disabled:active,
 .stApp .st-key-example_S01 button:disabled,
 .stApp .st-key-example_S04 button:disabled,
 .stApp .st-key-example_S06 button:disabled,
@@ -203,6 +214,11 @@ THEME_CSS = """
   background: #F1EDE4;
   color: #5E564C;
   border: 1px solid #D6D0C6;
+}
+.stApp .st-key-split_button button:disabled :is(p, span, div),
+.stApp .st-key-split_button button:disabled:hover :is(p, span, div),
+.stApp .st-key-split_button button:disabled:active :is(p, span, div) {
+  color: #5E564C;
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
   background: #FDFBF7;
