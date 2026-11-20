@@ -1,0 +1,23 @@
+{
+  "id": "E04",
+  "name": "没有 API key",
+  "counts_toward_8_of_10": false,
+  "input_file": "../S01_feature_coupon_redemption.txt",
+  "trigger": [
+    "不创建 .env，或把 DEEPSEEK_API_KEY 置空/删除后启动应用",
+    "粘贴 S01 全文点击拆解"
+  ],
+  "mock": null,
+  "expected_api_calls": 0,
+  "expected_retries": 0,
+  "retry_wait_seconds": null,
+  "expected_behavior": [
+    "不重试",
+    "直接提示 API key 配置问题",
+    "页面不崩溃",
+    "不把空/半截/错误响应渲染成成功的三块结果",
+    "错误信息中不出现 API key 或其它密钥"
+  ],
+  "expected_message": "以实现为准（记录实际文案）",
+  "source": "架构文档 v1 第 3.2 节第 4 条 + 文末变更记录（2026-11-20）"
+}

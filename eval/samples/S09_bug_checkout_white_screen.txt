@@ -1,0 +1,21 @@
+Sentry 从昨天发版 2.14.3 之后一直在跳：/checkout 页白屏。运营说下单转化掉了大概两成，急。
+
+环境：Web /checkout，Chrome 120、Safari 17 都有，App 内嵌 webview 也有。用户原话：「点结算之后转一下，然后什么都没了」。
+
+Sentry event:
+TypeError: Cannot read properties of undefined (reading 'price')
+  at formatAmount (https://cdn.example.com/assets/orderSummary-3f2a.js:1:2044)
+  at OrderSummary (https://cdn.example.com/assets/checkout-88ab.js:1:8122)
+  at renderWithHooks (react-dom.js:15486:18)
+  at mountIndeterminateComponent (react-dom.js:20026:13)
+
+Breadcrumbs:
+- [click] button.apply-coupon
+- [xhr] POST /api/v2/coupons/redeem  200  {"discount_amount":0,"code":"WELCOME0"}
+- [error] Cannot read properties of undefined (reading 'price')
+
+跟了一下 payload：有的行是服务端下发的 gift item（买一赠一），item.sku 在，但 item.price 是 null，前端直接 item.price.toFixed(2) 就炸了。赠品在活动里本来就是 0 元。普通商品、老数据走 checkout 是好的。
+
+另外 iOS webview 里还有一个 secondary error: ResizeObserver loop completed with undelivered notifications. 不确定相不相关，先放这儿。
+
+麻烦尽快修，最好 gift item 和 0 元券都不要把整页搞白屏。别把正常商品的金额格式化改坏了。

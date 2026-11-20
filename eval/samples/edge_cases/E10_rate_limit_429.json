@@ -1,0 +1,26 @@
+{
+  "id": "E10",
+  "name": "429 限流",
+  "counts_toward_8_of_10": false,
+  "input_file": "../S01_feature_coupon_redemption.txt",
+  "trigger": [
+    "mock 接口返回 HTTP 429"
+  ],
+  "mock": {
+    "A_retry_succeeds": "第 1 次 429，第 2 次返回合法 SplitResult",
+    "B_both_fail": "两次都返回 429"
+  },
+  "expected_api_calls": 2,
+  "expected_retries": 1,
+  "retry_wait_seconds": 2,
+  "expected_behavior": [
+    "等 2 秒后重试 1 次（两次调用间隔 ≥2 秒），不再多重试",
+    "A：第 2 次成功则正常展示",
+    "B：两次都 429 则显示精确文案「请求太频繁（已重试 1 次），请稍后再试。」",
+    "页面不崩溃",
+    "不把空/半截/错误响应渲染成成功的三块结果",
+    "错误信息中不出现 API key 或其它密钥"
+  ],
+  "expected_message": "请求太频繁（已重试 1 次），请稍后再试。",
+  "source": "架构文档 v1 第 3.2 节第 4 条 + 文末变更记录（2026-11-20）"
+}

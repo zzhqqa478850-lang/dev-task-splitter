@@ -1,0 +1,20 @@
+【紧急】部分用户 App 登录失败，网关返回 502。
+
+时间：2026-11-19 21:47:03 CST 开始密集出现，约持续 8 分钟，随后间歇出现。
+影响：iOS 2.8.1 / Android 2.8.0 都有，主要集中在登录接口 POST /api/v1/auth/login
+用户描述：输入正确验证码后转圈，然后提示「网络异常，请稍后重试」。
+
+nginx access:
+2026-11-19T21:47:03+08:00  app-gw-02  183.x.x.x  POST /api/v1/auth/login  502  1.004s  upstream: 10.0.12.24:8000
+
+auth-service log:
+2026-11-19 21:47:03,551 WARNING retry=1 redis.exceptions.TimeoutError: Timeout reading from unix socket /var/run/redis/redis.sock
+2026-11-19 21:47:04,552 ERROR   login failed uid_pending=1860022 request_id=c9e10
+Traceback (most recent call last):
+  File "/app/auth/session.py", line 67, in create_session
+    token = redis_client.set(f"sess:{uid}", payload, ex=7200)
+  File "/usr/local/lib/python3.11/site-packages/redis/client.py", line 2336, in set
+    return self.execute_command("SET", *pieces)
+redis.exceptions.ConnectionError: Error 111 connecting to /var/run/redis/redis.sock. Connection refused.
+
+运维反馈：当时 redis-auth 实例做了一次短暂重启，哨兵切换耗时约 6s。但重启后仍有少量 502。请评估是否只是依赖问题，登录流程有没有重试/降级。验证码本身校验是成功的，失败发生在写 session 这一步。

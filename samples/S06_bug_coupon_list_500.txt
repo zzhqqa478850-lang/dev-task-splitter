@@ -1,0 +1,18 @@
+【生产环境】用户反馈：打开「我的优惠券」页面直接 500，从昨天下午 3 点后开始出现，大约每小时 20+ 次。
+
+环境：生产，app-server-03，镜像 version 2.14.3
+时间：2026-11-19 15:12:08 CST
+
+Traceback (most recent call last):
+  File "/app/api/coupons/views.py", line 88, in list_user_coupons
+    items = [serialize_coupon(c) for c in qs]
+  File "/app/api/coupons/serializers.py", line 41, in serialize_coupon
+    "expire_date": coupon.expire_at.strftime("%Y-%m-%d"),
+AttributeError: 'NoneType' object has no attribute 'strftime'
+
+相关日志：
+2026-11-19 15:12:08,102 ERROR request_id=8f3a2c uid=104928 path=/api/v1/me/coupons
+2026-11-19 15:12:08,103 INFO  coupon_id=8821 expire_at=None status=active source=ops_manual_grant
+
+运营说昨天用后台给部分用户补发了「注册纪念券」，那批券没有填过期时间。老数据里 expire_at 都有值。
+请尽快修，最好别让整页挂掉。用户现在看不到任何优惠券，包括原本正常的券。
