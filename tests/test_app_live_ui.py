@@ -31,7 +31,7 @@ from playwright.sync_api import Page, expect, sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = Path(__file__).resolve().parent / "live_ui_harness.py"
 ARTIFACTS = Path(
-    os.environ.get("DTS_ARTIFACTS_DIR", "/tmp/dts-live-ui-artifacts")
+    os.environ.get("DTS_ARTIFACTS_DIR", "/opt/cursor/artifacts")
 )
 
 ALPHA = "旧结果摘要标记-ALPHA"
@@ -260,7 +260,8 @@ def _assert_pending_clean(
     _assert_contrast(split)
     for example in examples:
         assert example is not None and example["disabled"] is True, example
-        assert example["bg"] == "rgb(241, 237, 228)", example
+        # 可用示例是 #F1EDE4。禁用必须换成更灰的 #E4DDD2，不能只改一个看不出来的字色。
+        assert example["bg"] == "rgb(228, 221, 210)", example
         assert example["textColor"] == "rgb(94, 86, 76)", example
         _assert_contrast(example)
     assert textarea is not None and textarea["disabled"] is True, textarea
@@ -392,6 +393,7 @@ def test_live_browser_pending_hides_old_result_and_retry_paths(
         # 先证明空态可用控件的视觉与禁用态不同。
         submit = page.get_by_role("button", name="拆解", exact=True)
         expect(submit).to_be_enabled()
+        page.locator("textarea").first.wait_for()
         enabled_split = _button_style(page, ".st-key-split_button button")
         enabled_example = _button_style(page, ".st-key-example_S01 button")
         enabled_textarea = _button_style(page, "textarea")
@@ -404,6 +406,7 @@ def test_live_browser_pending_hides_old_result_and_retry_paths(
         submit.focus()
         _assert_contrast(_button_style(page, ".st-key-split_button button"))
         assert enabled_example is not None and enabled_example["disabled"] is False
+        assert enabled_example["bg"] == "rgb(241, 237, 228)", enabled_example
         assert enabled_example["textColor"] == "rgb(28, 24, 20)", enabled_example
         assert enabled_example["height"] >= 44, enabled_example
         _assert_contrast(enabled_example)

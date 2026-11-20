@@ -199,7 +199,8 @@ THEME_CSS = """
 .stApp .st-key-split_button button:hover :is(p, span, div),
 .stApp .st-key-split_button button:focus :is(p, span, div),
 .stApp .st-key-split_button button:focus-visible :is(p, span, div) {
-  color: #F7F4EE;
+  color: #F7F4EE !important;
+  -webkit-text-fill-color: #F7F4EE !important;
 }
 .stApp .st-key-example_S01 button,
 .stApp .st-key-example_S04 button,
@@ -235,8 +236,18 @@ THEME_CSS = """
 .stApp .st-key-download_markdown button:disabled :is(p, span, div),
 .stApp .st-key-download_json button:disabled :is(p, span, div),
 .stApp .st-key-retry_button button:disabled :is(p, span, div) {
-  color: #5E564C;
-  -webkit-text-fill-color: #5E564C;
+  color: #5E564C !important;
+  -webkit-text-fill-color: #5E564C !important;
+}
+/* 可用的示例/下载已经是 raised 底。禁用若仍用同一底色，截图上分不出来。 */
+.stApp .st-key-example_S01 button:disabled,
+.stApp .st-key-example_S04 button:disabled,
+.stApp .st-key-example_S06 button:disabled,
+.stApp .st-key-download_markdown button:disabled,
+.stApp .st-key-download_json button:disabled,
+.stApp .st-key-retry_button button:disabled {
+  background: #E4DDD2;
+  border-color: #C9C2B6;
 }
 /* 示例与下载各占满自己的列，避免同一行里被 fit-content 拉出大空隙。 */
 .stApp .st-key-examples [data-testid="stColumn"] [data-testid="stElementContainer"],
