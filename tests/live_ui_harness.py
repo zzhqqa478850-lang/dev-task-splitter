@@ -115,12 +115,14 @@ def _install_fake() -> None:
         mode = _read_mode()
         if mode == "raise":
             raise RuntimeError("boom-marker-not-a-secret")
-        if mode == "slow":
+        if mode in ("slow", "slow-raise"):
             _record("entered.log", text)
             deadline = time.time() + 30
             release = FIXTURE / "release"
             while time.time() < deadline and not release.exists():
                 time.sleep(0.05)
+        if mode == "slow-raise":
+            raise RuntimeError("boom-marker-not-a-secret")
         return _result_for(text)
 
     agent_module.run = fake

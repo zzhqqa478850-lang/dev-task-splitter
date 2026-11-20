@@ -145,6 +145,17 @@ THEME_CSS = """
   font-size: 15px;
   line-height: 24px;
 }
+/* 请求中：输入区用 --raised 底与 --ink-3 字，和可编辑态明显区分。 */
+.stApp [data-testid="stTextArea"] textarea:disabled {
+  background: #F1EDE4;
+  color: #5E564C;
+  -webkit-text-fill-color: #5E564C;
+  border-color: #D6D0C6;
+  cursor: not-allowed;
+}
+.stApp [data-testid="stTextArea"]:has(textarea:disabled) label p {
+  color: #5E564C;
+}
 .stApp [data-testid="stTextArea"] textarea:focus {
   border: 2px solid #1C1814;
   outline: 2px solid #1C1814;
@@ -217,8 +228,24 @@ THEME_CSS = """
 }
 .stApp .st-key-split_button button:disabled :is(p, span, div),
 .stApp .st-key-split_button button:disabled:hover :is(p, span, div),
-.stApp .st-key-split_button button:disabled:active :is(p, span, div) {
+.stApp .st-key-split_button button:disabled:active :is(p, span, div),
+.stApp .st-key-example_S01 button:disabled :is(p, span, div),
+.stApp .st-key-example_S04 button:disabled :is(p, span, div),
+.stApp .st-key-example_S06 button:disabled :is(p, span, div),
+.stApp .st-key-download_markdown button:disabled :is(p, span, div),
+.stApp .st-key-download_json button:disabled :is(p, span, div),
+.stApp .st-key-retry_button button:disabled :is(p, span, div) {
   color: #5E564C;
+  -webkit-text-fill-color: #5E564C;
+}
+/* 示例与下载各占满自己的列，避免同一行里被 fit-content 拉出大空隙。 */
+.stApp .st-key-examples [data-testid="stColumn"] [data-testid="stElementContainer"],
+.stApp .st-key-exports [data-testid="stColumn"] [data-testid="stElementContainer"] {
+  width: 100%;
+}
+.stApp .st-key-examples [data-testid="stColumn"] button,
+.stApp .st-key-exports [data-testid="stColumn"] button {
+  width: 100%;
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
   background: #FDFBF7;
@@ -337,6 +364,15 @@ THEME_CSS = """
   }
 }
 .stApp:has(.dts-pending-active) [data-stale="true"] {
+  display: none !important;
+}
+/* Streamlit 只给叶子节点写 data-stale。展开器、导出按钮、代码块和带边框的
+   结果卡外壳不是叶子，pending 时仍会留下空骨架；这些控件在 pending 里没有
+   合法用途，按稳定的 testid / key 整块隐藏。 */
+.stApp:has(.dts-pending-active) [data-testid="stExpander"],
+.stApp:has(.dts-pending-active) [data-testid="stDownloadButton"],
+.stApp:has(.dts-pending-active) [data-testid="stCode"],
+.stApp:has(.dts-pending-active) [class*="st-key-result_card_"] {
   display: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -552,8 +588,8 @@ def _render_understanding(result: SplitResult) -> None:
 
 def _render_tasks(result: SplitResult) -> None:
     st.subheader("任务")
-    for task in result.tasks:
-        with st.container(border=True):
+    for index, task in enumerate(result.tasks, start=1):
+        with st.container(key=f"result_card_task_{index}", border=True):
             st.markdown(
                 "<p class='dts-card-title'>"
                 f"<span class='dts-id'>{html.escape(task.id)}</span>"
@@ -581,8 +617,8 @@ def _render_tasks(result: SplitResult) -> None:
 
 def _render_test_points(result: SplitResult) -> None:
     st.subheader("测试点")
-    for point in result.test_points:
-        with st.container(border=True):
+    for index, point in enumerate(result.test_points, start=1):
+        with st.container(key=f"result_card_test_{index}", border=True):
             st.markdown(
                 "<p class='dts-card-title'>"
                 f"<span class='dts-id'>{html.escape(point.id)}</span>"
@@ -610,8 +646,8 @@ def _render_questions(result: SplitResult) -> None:
         _banner("info", config.MSG_NO_QUESTIONS)
         return
 
-    for question in result.questions:
-        with st.container(border=True):
+    for index, question in enumerate(result.questions, start=1):
+        with st.container(key=f"result_card_question_{index}", border=True):
             st.markdown(
                 "<p class='dts-card-title'>"
                 f"<span class='dts-id'>{html.escape(question.id)}</span>"
@@ -829,11 +865,12 @@ def _render_page() -> None:
         agent_result = result if isinstance(result, agent.AgentResult) else None
         _render_failure(agent_result, failure)
 
-    if locked or failure is not None:
+    # 请求中只保留 pending 提示；失败完成并解锁后才画手动「重试」。
+    if failure is not None:
         st.button(
             "重试",
             key="retry_button",
-            disabled=locked or over_limit,
+            disabled=over_limit,
             on_click=_on_submit,
         )
 

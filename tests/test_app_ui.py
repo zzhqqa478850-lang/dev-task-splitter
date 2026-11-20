@@ -459,7 +459,9 @@ def test_locked_session_disables_controls_without_calling_agent(
     assert at.text_area[0].disabled is True
     for key in ("example_S01", "example_S04", "example_S06"):
         assert at.button(key=key).disabled is True
-    assert at.button(key="retry_button").disabled is True
+    # 请求中只保留 pending 提示；失败后的手动「重试」不应在这一拍出现。
+    with pytest.raises(KeyError):
+        at.button(key="retry_button")
 
 
 def test_exception_unlocks_and_keeps_manual_retry(
