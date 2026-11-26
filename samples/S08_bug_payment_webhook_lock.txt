@@ -1,0 +1,25 @@
+【生产/紧急】财务对账对不上：有一部分订单用户已经付款成功，后台订单中心还停在「待支付」。今早 9 点财务群炸了，大概从昨晚 21:40 那次发布之后开始出现。
+
+环境：生产 payment-service v3.2.1，渠道微信 JSAPI + 支付宝 H5。
+用户侧：微信账单能看到扣款，App 里订单仍是待支付，点「我已支付」没反应。客服让刷新也不行。
+
+相关日志（payment-service-02，2026-11-19 21:47:18 CST）：
+
+2026-11-19 21:47:18,221 INFO  received webhook event_id=EVT20261119214718wx001 type=payment.succeeded order_no=P2026111908821 amount=19900
+2026-11-19 21:47:18,340 ERROR  failed to update order
+Traceback (most recent call last):
+  File "/app/payments/webhooks.py", line 156, in handle_payment_succeeded
+    order.mark_paid(payment_no=event.transaction_id)
+  File "/app/orders/models.py", line 201, in mark_paid
+    raise OptimisticLockError(f"version conflict: order={self.order_no} version={self.version}")
+orders.exceptions.OptimisticLockError: version conflict: order=P2026111908821 version=3
+
+2026-11-19 21:47:18,341 WARNING webhook returned 500, channel will retry
+2026-11-19 21:47:26,012 INFO  retry event_id=EVT20261119214718wx001
+2026-11-19 21:47:26,088 ERROR OptimisticLockError again, still HTTP 500
+
+运维说发布窗口刚好有人在后台手工改过这批订单的备注，可能把 version 顶上去了。支付宝侧也有类似「钱扣了单没更新」，不过日志不一样，他们回调里交易号字段是 transId（驼峰），我们解析出来是 None，然后直接 skip，只有一行：
+
+2026-11-19 22:03:11,550 WARNING skip webhook: payment_no is empty, event_id=20261119220311ALI009
+
+请先紧急修，别再出现「钱扣了单没更新」。对账脚本和补单工具这次先不要做大改造，但要告诉财务这批漏单怎么临时处理。

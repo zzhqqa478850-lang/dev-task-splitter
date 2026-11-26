@@ -1,0 +1,14 @@
+帮我在 checkout 流程里加一个 coupon redemption：
+
+- 用户在 /checkout 页面的 promo code 输入框填 code，点 Apply
+- 调 POST /api/v2/coupons/redeem，request body: { "code": string, "order_id": string, "user_id": number }
+- 成功时 HTTP 200，data.discount_amount 单位是分（cent），要在 Order Summary 里显示 Discount 行
+- coupon 只能用一次：used_at 不为空就拒绝，返回 409 COUPON_ALREADY_USED
+- expired_at < now 返回 410 COUPON_EXPIRED
+- 满减条件字段 min_order_amount，订单未满返回 422 ORDER_AMOUNT_TOO_LOW
+- 要支持 stack 吗？产品说先不要 stacking，一个 order 只能用一张 coupon
+- 取消订单要 release coupon，否则用户没法重新用
+- QA 问了 edge case：并发两个请求同时 redeem 同一张券怎么办，需要幂等
+- 中文文案要用：优惠码、满减、已使用、已过期。英文 UI 先保持和现有 checkout 一致
+
+请拆一下要做的和要测的。

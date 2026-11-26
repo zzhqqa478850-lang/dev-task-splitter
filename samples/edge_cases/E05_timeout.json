@@ -1,0 +1,27 @@
+{
+  "id": "E05",
+  "name": "接口超时",
+  "counts_toward_8_of_10": false,
+  "input_file": "../S01_feature_coupon_redemption.txt",
+  "trigger": [
+    "单次调用超时默认 60 秒，是配置项；测试时把超时配置调短（如 1 秒）以免等待",
+    "mock / 代理让 DeepSeek 请求挂起直到超时"
+  ],
+  "mock": {
+    "A_retry_succeeds": "第 1 次挂起超时，第 2 次返回合法 SplitResult",
+    "B_both_fail": "两次都挂起超时"
+  },
+  "expected_api_calls": 2,
+  "expected_retries": 1,
+  "retry_wait_seconds": null,
+  "expected_behavior": [
+    "超时后原样重发 1 次（共 2 次调用），不再多重试",
+    "A：第 2 次成功则正常展示三块",
+    "B：两次都超时则展示错误",
+    "页面不崩溃",
+    "不把空/半截/错误响应渲染成成功的三块结果",
+    "错误信息中不出现 API key 或其它密钥"
+  ],
+  "expected_message": "以实现为准（记录实际文案）",
+  "source": "架构文档 v1 第 3.2 节第 4 条 + 文末变更记录（2026-11-20）"
+}
